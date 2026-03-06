@@ -1,0 +1,4 @@
+MONGODB_URI=mongodb://localhost:27017/personalblog
+SESSION_SECRET=your-super-secret-key-change-this-in-production
+PORT=3000
+UPLOAD_API_URL=https://your-upload-api.com/upload

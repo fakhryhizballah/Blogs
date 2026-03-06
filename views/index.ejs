@@ -1,0 +1,108 @@
+<%- include('partials/head') %>
+<%- include('partials/navbar') %>
+
+<main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+  <!-- Hero / Featured Article -->
+  <% if (featuredArticle) { %>
+  <section class="mb-16">
+    <div class="relative rounded-2xl overflow-hidden bg-ink-900 min-h-[440px] flex">
+      <% if (featuredArticle.coverImage) { %>
+        <img src="<%= featuredArticle.coverImage %>" alt="<%= featuredArticle.title %>"
+          class="absolute inset-0 w-full h-full object-cover opacity-40">
+      <% } %>
+      <div class="relative z-10 flex flex-col justify-end p-8 md:p-12 flex-1 bg-gradient-to-t from-ink-900/90 via-ink-900/40 to-transparent">
+        <div class="flex flex-wrap gap-2 mb-4">
+          <% featuredArticle.tags.slice(0,3).forEach(tag => { %>
+            <a href="/topics/<%= tag %>" class="px-3 py-1 bg-accent-500 text-white rounded-full text-xs font-medium">#<%= tag %></a>
+          <% }) %>
+        </div>
+        <h1 class="font-serif text-3xl md:text-4xl font-bold text-white leading-tight mb-4">
+          <a href="/articles/<%= featuredArticle.slug %>" class="hover:underline"><%= featuredArticle.title %></a>
+        </h1>
+        <p class="text-ink-200 text-sm md:text-base mb-6 max-w-2xl line-clamp-2"><%= featuredArticle.excerpt %></p>
+        <div class="flex items-center gap-4">
+          <img src="<%= featuredArticle.author.avatar %>" alt="" class="w-8 h-8 rounded-full object-cover">
+          <div class="text-sm text-ink-300">
+            <span><%= featuredArticle.author.displayName %></span>
+            <span class="mx-2">·</span>
+            <span><%= featuredArticle.publishedAt ? new Date(featuredArticle.publishedAt).toLocaleDateString('id-ID', {day:'numeric',month:'long',year:'numeric'}) : '' %></span>
+            <span class="mx-2">·</span>
+            <span><%= featuredArticle.readTime %> menit baca</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <% } %>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Articles Grid -->
+    <div class="lg:col-span-2">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="font-serif text-2xl font-semibold text-ink-900">Artikel Terbaru</h2>
+      </div>
+
+      <% if (otherArticles && otherArticles.length > 0) { %>
+        <div class="space-y-6">
+          <% otherArticles.forEach(article => { %>
+            <article class="bg-white rounded-xl border border-ink-200 overflow-hidden hover:shadow-md hover:border-ink-300 transition group">
+              <div class="flex gap-4 p-5">
+                <% if (article.coverImage) { %>
+                  <div class="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden">
+                    <img src="<%= article.coverImage %>" alt="<%= article.title %>"
+                      class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                  </div>
+                <% } %>
+                <div class="flex-1 min-w-0">
+                  <div class="flex flex-wrap gap-1.5 mb-2">
+                    <% article.tags.slice(0,2).forEach(tag => { %>
+                      <a href="/topics/<%= tag %>" class="text-xs text-accent-500 hover:text-accent-600 font-medium">#<%= tag %></a>
+                    <% }) %>
+                  </div>
+                  <h3 class="font-serif font-semibold text-ink-900 text-lg leading-snug mb-2 line-clamp-2">
+                    <a href="/articles/<%= article.slug %>" class="hover:text-accent-500 transition"><%= article.title %></a>
+                  </h3>
+                  <p class="text-ink-500 text-sm line-clamp-2 mb-3"><%= article.excerpt %></p>
+                  <div class="flex items-center gap-3 text-xs text-ink-400">
+                    <img src="<%= article.author.avatar %>" alt="" class="w-5 h-5 rounded-full object-cover">
+                    <span><%= article.author.displayName %></span>
+                    <span>·</span>
+                    <span><%= article.publishedAt ? new Date(article.publishedAt).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'}) : '' %></span>
+                    <span>·</span>
+                    <span><%= article.readTime %> mnt</span>
+                    <span>·</span>
+                    <span class="flex items-center gap-1">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                      <%= article.views %>
+                    </span>
+                    <span>·</span>
+                    <span class="flex items-center gap-1">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                      <%= article.comments.length %>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <div class="text-center py-16 text-ink-400">
+          <svg class="w-12 h-12 mx-auto mb-4 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <p>Belum ada artikel yang dipublikasikan</p>
+        </div>
+      <% } %>
+    </div>
+
+    <!-- Sidebar -->
+    <div>
+      <%- include('partials/sidebar') %>
+    </div>
+  </div>
+</main>
+
+<%- include('partials/footer') %>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

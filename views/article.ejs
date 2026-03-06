@@ -1,0 +1,307 @@
+<%- include('partials/head') %>
+<%- include('partials/navbar') %>
+
+<!-- Data untuk vanilla JS (tidak tampil di UI) -->
+<script type="application/json" id="initialLikes"><%- JSON.stringify(article.likes) %></script>
+<script type="application/json" id="initialDislikes"><%- JSON.stringify(article.dislikes) %></script>
+
+<main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+
+    <!-- ── KONTEN ARTIKEL ──────────────────────────── -->
+    <div class="lg:col-span-2">
+      <article>
+
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="flex items-center gap-2 text-sm text-ink-400 mb-6">
+          <a href="/" class="hover:text-ink-700 transition">Beranda</a>
+          <span aria-hidden="true">/</span>
+          <% if (article.tags[0]) { %>
+            <a href="/topics/<%= article.tags[0] %>" class="hover:text-ink-700 transition">#<%= article.tags[0] %></a>
+            <span aria-hidden="true">/</span>
+          <% } %>
+          <span class="text-ink-600 truncate max-w-xs"><%= article.title %></span>
+        </nav>
+
+        <!-- Tags -->
+        <div class="flex flex-wrap gap-2 mb-4">
+          <% article.tags.forEach(tag => { %>
+            <a href="/topics/<%= tag %>"
+              class="px-3 py-1 bg-accent-500/10 text-accent-600 rounded-full text-sm font-medium hover:bg-accent-500/20 transition">
+              #<%= tag %>
+            </a>
+          <% }) %>
+        </div>
+
+        <!-- Judul -->
+        <h1 class="font-serif text-3xl md:text-4xl font-bold text-ink-900 leading-tight mb-6">
+          <%= article.title %>
+        </h1>
+
+        <!-- Meta -->
+        <div class="flex flex-wrap items-center gap-4 mb-8 pb-6 border-b border-ink-200">
+          <div class="flex items-center gap-3">
+            <img src="<%= article.author.avatar %>" alt="<%= article.author.displayName %>"
+              class="w-10 h-10 rounded-full object-cover border-2 border-ink-200">
+            <div>
+              <p class="font-medium text-ink-900 text-sm"><%= article.author.displayName %></p>
+              <p class="text-ink-400 text-xs">@<%= article.author.username %></p>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-3 text-sm text-ink-500">
+            <time datetime="<%= article.publishedAt ? article.publishedAt.toISOString() : '' %>"
+              class="flex items-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <%= new Date(article.publishedAt || article.createdAt).toLocaleDateString('id-ID',
+                {weekday:'long',year:'numeric',month:'long',day:'numeric'}) %>
+            </time>
+            <span aria-hidden="true">·</span>
+            <span class="flex items-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <%= article.readTime %> menit baca
+            </span>
+            <span aria-hidden="true">·</span>
+            <span class="flex items-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+              <%= article.views.toLocaleString('id-ID') %> tayangan
+            </span>
+          </div>
+        </div>
+
+        <!-- Cover image -->
+        <% if (article.coverImage) { %>
+          <div class="mb-8 rounded-xl overflow-hidden">
+            <img src="<%= article.coverImage %>" alt="<%= article.title %>"
+              class="w-full max-h-96 object-cover" loading="lazy">
+          </div>
+        <% } %>
+
+        <!-- Konten -->
+        <div class="prose-content mb-10">
+          <%- article.content %>
+        </div>
+
+        <!-- File lampiran -->
+        <% if (article.mediaFiles && article.mediaFiles.length > 0) { %>
+          <section class="mb-10 p-6 bg-ink-50 rounded-xl border border-ink-200">
+            <h2 class="font-semibold text-ink-800 mb-4 flex items-center gap-2 text-base">
+              <svg class="w-5 h-5 text-accent-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+              </svg>
+              File Lampiran
+            </h2>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <% article.mediaFiles.forEach(media => { %>
+                <% if (media.type === 'image') { %>
+                  <a href="<%= media.url %>" target="_blank" rel="noopener"
+                    class="block rounded-lg overflow-hidden border border-ink-200 hover:border-accent-400 transition">
+                    <img src="<%= media.url %>" alt="<%= media.name %>" class="w-full h-24 object-cover" loading="lazy">
+                    <p class="text-xs text-ink-500 p-2 truncate"><%= media.name %></p>
+                  </a>
+                <% } else if (media.type === 'video') { %>
+                  <div class="rounded-lg overflow-hidden border border-ink-200">
+                    <video src="<%= media.url %>" controls class="w-full h-24 bg-ink-900"></video>
+                    <p class="text-xs text-ink-500 p-2 truncate"><%= media.name %></p>
+                  </div>
+                <% } else if (media.type === 'pdf') { %>
+                  <a href="<%= media.url %>" target="_blank" rel="noopener"
+                    class="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border border-ink-200 hover:border-accent-400 hover:bg-accent-500/5 transition">
+                    <span class="text-3xl">📄</span>
+                    <p class="text-xs text-ink-600 text-center truncate w-full"><%= media.name %></p>
+                  </a>
+                <% } %>
+              <% }) %>
+            </div>
+          </section>
+        <% } %>
+
+        <!-- Like / Dislike -->
+        <div class="flex items-center gap-4 mb-10 p-5 bg-white rounded-xl border border-ink-200">
+          <p class="text-sm text-ink-600">Artikel ini bermanfaat?</p>
+          <button
+            id="likeBtn"
+            data-article-id="<%= article._id %>"
+            class="reaction-btn flex items-center gap-2 px-4 py-2 rounded-lg border border-ink-200 hover:border-green-400 hover:bg-green-50 transition text-sm font-medium"
+            aria-label="Like artikel">
+            <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/>
+            </svg>
+            <span id="likeCount"><%= article.likes.length %></span>
+          </button>
+          <button
+            id="dislikeBtn"
+            data-article-id="<%= article._id %>"
+            class="reaction-btn flex items-center gap-2 px-4 py-2 rounded-lg border border-ink-200 hover:border-red-400 hover:bg-red-50 transition text-sm font-medium"
+            aria-label="Dislike artikel">
+            <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v2a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"/>
+            </svg>
+            <span id="dislikeCount"><%= article.dislikes.length %></span>
+          </button>
+        </div>
+
+        <!-- Reaksi aktif style -->
+        <style>
+          #likeBtn.active-like       { background:#f0fdf4; border-color:#4ade80; }
+          #dislikeBtn.active-dislike { background:#fef2f2; border-color:#f87171; }
+        </style>
+
+        <!-- Bio penulis -->
+        <% if (article.author.bio) { %>
+          <div class="mb-10 p-6 bg-ink-900 rounded-xl text-white flex gap-4 items-start">
+            <img src="<%= article.author.avatar %>" alt="<%= article.author.displayName %>"
+              class="w-14 h-14 rounded-full object-cover flex-shrink-0 border-2 border-accent-500">
+            <div>
+              <p class="font-semibold mb-1"><%= article.author.displayName %></p>
+              <p class="text-ink-300 text-sm leading-relaxed"><%= article.author.bio %></p>
+            </div>
+          </div>
+        <% } %>
+
+        <!-- ── KOMENTAR ──────────────────────────────── -->
+        <section id="comments-section" data-article-id="<%= article._id %>">
+          <h2 class="font-serif text-2xl font-semibold text-ink-900 mb-6">
+            Komentar (<span id="commentCount"><%= article.comments.length %></span>)
+          </h2>
+
+          <!-- Form komentar -->
+          <div class="bg-white rounded-xl border border-ink-200 p-6 mb-8">
+            <h3 class="font-semibold text-ink-800 mb-4">Tinggalkan Komentar</h3>
+
+            <!-- Input nama (tampil jika belum tersimpan) -->
+            <div id="nameInputWrapper" class="mb-4">
+              <label for="commentName" class="block text-sm font-medium text-ink-700 mb-1">
+                Nama Anda
+              </label>
+              <div class="flex gap-2">
+                <input
+                  type="text" id="commentName"
+                  placeholder="Masukkan nama Anda"
+                  autocomplete="nickname"
+                  class="flex-1 px-4 py-2.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-400 transition">
+                <button id="saveNameBtn" type="button"
+                  class="px-4 py-2.5 bg-ink-100 text-ink-700 rounded-lg text-sm font-medium hover:bg-ink-200 transition">
+                  Simpan
+                </button>
+              </div>
+            </div>
+
+            <!-- Badge nama tersimpan -->
+            <div id="savedNameDisplay" class="hidden mb-4 flex items-center gap-2 text-sm text-ink-600 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+              <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+              Berkomentar sebagai: <strong id="savedNameText" class="font-semibold text-ink-800"></strong>
+              <button id="changeNameBtn" type="button"
+                class="ml-auto text-xs text-accent-500 hover:underline">
+                Ganti nama
+              </button>
+            </div>
+
+            <!-- Teks komentar -->
+            <form id="commentForm" novalidate>
+              <label for="commentText" class="block text-sm font-medium text-ink-700 mb-1">Komentar</label>
+              <textarea
+                id="commentText" rows="4"
+                placeholder="Tulis komentar Anda…"
+                class="w-full px-4 py-2.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-400 transition resize-none"></textarea>
+              <button type="submit"
+                class="mt-3 px-6 py-2.5 bg-ink-900 text-white rounded-lg text-sm font-medium hover:bg-ink-800 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                Kirim Komentar
+              </button>
+            </form>
+          </div>
+
+          <!-- Daftar komentar -->
+          <div id="commentsList" class="space-y-4">
+            <% article.comments.slice().reverse().forEach(comment => { %>
+              <div class="bg-white rounded-xl border border-ink-200 p-5" id="comment-<%= comment._id %>">
+                <div class="flex items-start justify-between gap-4">
+                  <div class="flex items-start gap-3">
+                    <div class="w-9 h-9 bg-ink-200 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span class="text-ink-600 font-medium text-sm">
+                        <%= comment.guestName.charAt(0).toUpperCase() %>
+                      </span>
+                    </div>
+                    <div>
+                      <p class="font-semibold text-ink-800 text-sm"><%= comment.guestName %></p>
+                      <time class="text-xs text-ink-400 mb-2 block"
+                        datetime="<%= comment.createdAt.toISOString() %>">
+                        <%= new Date(comment.createdAt).toLocaleDateString('id-ID',
+                          {day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}) %>
+                      </time>
+                      <p class="text-ink-700 text-sm leading-relaxed"><%= comment.content %></p>
+                    </div>
+                  </div>
+                  <!-- Tombol hapus — JS akan show/hide berdasarkan guestId -->
+                  <button
+                    class="hidden flex-shrink-0 p-1.5 text-ink-300 hover:text-red-500 rounded hover:bg-red-50 transition"
+                    data-delete-comment="<%= comment._id %>"
+                    data-comment-guest-id="<%= comment.guestId %>"
+                    title="Hapus komentar saya">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </section>
+
+      </article>
+    </div><!-- /article -->
+
+
+    <!-- ── SIDEBAR ───────────────────────────────── -->
+    <div>
+      <%- include('partials/sidebar') %>
+
+      <!-- Artikel terkait -->
+      <% if (relatedArticles && relatedArticles.length > 0) { %>
+        <div class="mt-6 bg-white rounded-xl border border-ink-200 p-6">
+          <h3 class="font-serif font-semibold text-ink-900 text-lg mb-4">Artikel Terkait</h3>
+          <div class="space-y-4">
+            <% relatedArticles.forEach(related => { %>
+              <div class="flex gap-3">
+                <% if (related.coverImage) { %>
+                  <img src="<%= related.coverImage %>" alt="" loading="lazy"
+                    class="w-16 h-16 rounded-lg object-cover flex-shrink-0">
+                <% } %>
+                <div class="min-w-0">
+                  <a href="/articles/<%= related.slug %>"
+                    class="text-sm font-medium text-ink-800 hover:text-accent-500 transition line-clamp-2 leading-snug">
+                    <%= related.title %>
+                  </a>
+                  <p class="text-xs text-ink-400 mt-1"><%= related.readTime %> mnt baca</p>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% } %>
+    </div>
+
+  </div><!-- /grid -->
+</main>
+
+<%- include('partials/footer') %>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

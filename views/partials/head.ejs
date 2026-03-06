@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title || 'Blog Pribadi' %></title>
+  <% if (typeof metaDescription !== 'undefined') { %>
+    <meta name="description" content="<%= metaDescription %>">
+  <% } else { %>
+    <meta name="description" content="Blog pribadi untuk berbagi pengetahuan dan dokumentasi">
+  <% } %>
+  <% if (typeof canonicalUrl !== 'undefined') { %>
+    <link rel="canonical" href="https://yourdomain.com<%= canonicalUrl %>">
+  <% } %>
+  <!-- Open Graph -->
+  <meta property="og:title" content="<%= title %>">
+  <% if (typeof metaDescription !== 'undefined') { %>
+    <meta property="og:description" content="<%= metaDescription %>">
+  <% } %>
+  <% if (typeof metaImage !== 'undefined' && metaImage) { %>
+    <meta property="og:image" content="<%= metaImage %>">
+  <% } %>
+  <meta property="og:type" content="website">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="<%= title %>">
+
+  <!-- Google Fonts: Playfair Display + DM Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['Playfair Display', 'Georgia', 'serif'],
+            sans: ['DM Sans', 'system-ui', 'sans-serif'],
+            mono: ['DM Mono', 'monospace'],
+          },
+          colors: {
+            ink: {
+              50: '#f7f6f3',
+              100: '#ede9e0',
+              200: '#d9d2c2',
+              300: '#c0b49e',
+              400: '#a3937a',
+              500: '#8b7a63',
+              600: '#6d5f4e',
+              700: '#584e40',
+              800: '#3d3529',
+              900: '#1e1a12',
+            },
+            accent: {
+              400: '#e07b3e',
+              500: '#c9612a',
+              600: '#b05220',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="bg-ink-50 text-ink-900 font-sans antialiased">

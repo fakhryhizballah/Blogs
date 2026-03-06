@@ -1,0 +1,130 @@
+<%- include('../partials/head') %>
+
+<div class="flex min-h-screen bg-ink-50">
+  <%- include('../partials/admin-sidebar', { user, currentPage }) %>
+
+  <main class="flex-1 overflow-auto">
+    <div class="px-6 py-8">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="font-serif text-2xl font-bold text-ink-900">Kelola Artikel</h1>
+        <a href="/admin/articles/new"
+          class="flex items-center gap-2 px-4 py-2.5 bg-ink-900 text-white rounded-xl text-sm font-medium hover:bg-ink-800 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Tulis Artikel
+        </a>
+      </div>
+
+      <!-- Flash -->
+      <% if (flashSuccess) { %>
+        <div class="mb-6 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm"><%= flashSuccess %></div>
+      <% } %>
+
+      <!-- Filters -->
+      <div class="bg-white rounded-xl border border-ink-200 p-4 mb-6">
+        <form action="/admin/articles" method="GET" class="flex flex-wrap gap-3">
+          <input type="text" name="search" value="<%= filters.search || '' %>" placeholder="Cari judul..."
+            class="flex-1 min-w-48 px-3 py-2 border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-400 transition">
+          <select name="status" class="px-3 py-2 border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-400 bg-white">
+            <option value="all" <%= !filters.status || filters.status === 'all' ? 'selected' : '' %>>Semua Status</option>
+            <option value="published" <%= filters.status === 'published' ? 'selected' : '' %>>Dipublikasi</option>
+            <option value="draft" <%= filters.status === 'draft' ? 'selected' : '' %>>Draft</option>
+            <option value="private" <%= filters.status === 'private' ? 'selected' : '' %>>Private</option>
+          </select>
+          <select name="tag" class="px-3 py-2 border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-400 bg-white">
+            <option value="">Semua Topik</option>
+            <% allTags.forEach(tag => { %>
+              <option value="<%= tag %>" <%= filters.tag === tag ? 'selected' : '' %>>#<%= tag %></option>
+            <% }) %>
+          </select>
+          <button type="submit" class="px-4 py-2 bg-ink-900 text-white rounded-lg text-sm hover:bg-ink-800 transition">Filter</button>
+          <a href="/admin/articles" class="px-4 py-2 border border-ink-200 text-ink-600 rounded-lg text-sm hover:bg-ink-50 transition">Reset</a>
+        </form>
+      </div>
+
+      <!-- Articles Table -->
+      <div class="bg-white rounded-xl border border-ink-200 overflow-hidden">
+        <% if (articles && articles.length > 0) { %>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-ink-50 border-b border-ink-200">
+                <th class="text-left px-6 py-3.5 font-medium text-ink-600">Artikel</th>
+                <th class="text-left px-4 py-3.5 font-medium text-ink-600 hidden md:table-cell">Topik</th>
+                <th class="text-left px-4 py-3.5 font-medium text-ink-600 hidden lg:table-cell">Status</th>
+                <th class="text-right px-4 py-3.5 font-medium text-ink-600 hidden lg:table-cell">Stats</th>
+                <th class="text-right px-6 py-3.5 font-medium text-ink-600">Aksi</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-ink-100">
+              <% articles.forEach(article => { %>
+                <tr class="hover:bg-ink-50 transition">
+                  <td class="px-6 py-4">
+                    <div class="flex items-start gap-3">
+                      <% if (article.coverImage) { %>
+                        <img src="<%= article.coverImage %>" alt="" class="w-12 h-12 rounded-lg object-cover flex-shrink-0 hidden sm:block">
+                      <% } %>
+                      <div class="min-w-0">
+                        <p class="font-medium text-ink-900 truncate max-w-xs"><%= article.title %></p>
+                        <p class="text-xs text-ink-400 mt-0.5">
+                          <%= new Date(article.createdAt).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) %>
+                          · <%= article.readTime %> mnt
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-4 py-4 hidden md:table-cell">
+                    <div class="flex flex-wrap gap-1">
+                      <% article.tags.slice(0,2).forEach(tag => { %>
+                        <span class="px-2 py-0.5 bg-ink-100 text-ink-600 rounded-full text-xs">#<%= tag %></span>
+                      <% }) %>
+                    </div>
+                  </td>
+                  <td class="px-4 py-4 hidden lg:table-cell">
+                    <span class="px-2.5 py-1 rounded-full text-xs font-medium
+                      <%= article.status === 'published' ? 'bg-green-100 text-green-700' : article.status === 'draft' ? 'bg-yellow-100 text-yellow-700' : 'bg-purple-100 text-purple-700' %>">
+                      <%= article.status === 'published' ? 'Publikasi' : article.status === 'draft' ? 'Draft' : 'Private' %>
+                    </span>
+                  </td>
+                  <td class="px-4 py-4 hidden lg:table-cell text-right">
+                    <div class="text-xs text-ink-500 space-y-0.5">
+                      <div><%= article.views %> views</div>
+                      <div><%= article.comments.length %> komentar</div>
+                      <div><%= article.likes.length %> likes</div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <div class="flex items-center justify-end gap-1.5">
+                      <% if (article.status === 'published') { %>
+                        <a href="/articles/<%= article.slug %>" target="_blank"
+                          class="p-1.5 text-ink-400 hover:text-accent-500 rounded hover:bg-ink-100 transition" title="Lihat">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        </a>
+                      <% } %>
+                      <a href="/admin/articles/<%= article._id %>/edit"
+                        class="p-1.5 text-ink-400 hover:text-ink-900 rounded hover:bg-ink-100 transition" title="Edit">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                      </a>
+                      <form action="/admin/articles/<%= article._id %>/delete" method="POST" class="inline"
+                        onsubmit="return confirm('Yakin ingin menghapus artikel ini?')">
+                        <button type="submit" class="p-1.5 text-ink-400 hover:text-red-500 rounded hover:bg-ink-100 transition" title="Hapus">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        <% } else { %>
+          <div class="text-center py-16 text-ink-400">
+            <svg class="w-12 h-12 mx-auto mb-4 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <p>Belum ada artikel</p>
+            <a href="/admin/articles/new" class="mt-2 inline-block text-accent-500 hover:underline text-sm">+ Tulis artikel pertama</a>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

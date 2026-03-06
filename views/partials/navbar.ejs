@@ -1,0 +1,42 @@
+<nav class="sticky top-0 z-50 bg-ink-50/95 backdrop-blur-sm border-b border-ink-200">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+      <!-- Logo -->
+      <a href="/" class="flex items-center gap-2 group">
+        <div class="w-8 h-8 bg-ink-900 rounded-sm flex items-center justify-center">
+          <span class="text-ink-50 font-serif font-bold text-sm">EA</span>
+        </div>
+        <span class="font-serif font-semibold text-ink-900 text-lg hidden sm:block">Everything <span class="text-accent-500">&nbsp;</span><span class="text-accent-500">Anything</span></span>
+      </a>
+
+      <!-- Search Bar -->
+      <div class="flex-1 max-w-md mx-4 hidden md:block">
+        <form action="/search" method="GET">
+          <div class="relative">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input type="text" name="q" placeholder="Cari artikel..." value="<%= typeof query !== 'undefined' ? query : '' %>"
+              class="w-full pl-10 pr-4 py-2 bg-white border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-400 focus:border-transparent transition">
+          </div>
+        </form>
+      </div>
+
+      <!-- Nav links -->
+      <div class="flex items-center gap-4">
+        <a href="/" class="text-sm text-ink-600 hover:text-ink-900 transition hidden sm:block">Beranda</a>
+        <a href="/search" class="md:hidden text-ink-600 hover:text-ink-900">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </a>
+        <% if (sessionUser) { %>
+          <a href="/admin/dashboard" class="flex items-center gap-2 bg-ink-900 text-ink-50 px-3 py-1.5 rounded-lg text-sm hover:bg-ink-800 transition">
+            <img src="<%= sessionUser.avatar %>" alt="" class="w-5 h-5 rounded-full object-cover">
+            Dashboard
+          </a>
+        <% } else { %>
+          <a href="/admin/login" class="text-sm bg-accent-500 text-white px-4 py-1.5 rounded-lg hover:bg-accent-600 transition font-medium">
+            Login
+          </a>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</nav>

@@ -1,0 +1,70 @@
+<aside class="w-64 bg-ink-900 min-h-screen flex flex-col">
+  <!-- Logo -->
+  <div class="px-6 py-5 border-b border-ink-800">
+    <a href="/" class="flex items-center gap-2">
+      <div class="w-8 h-8 bg-accent-500 rounded-sm flex items-center justify-center">
+        <span class="text-white font-serif font-bold text-sm">EA</span>
+      </div>
+      <span class="font-serif font-semibold text-white text-lg">Everything & Anything</span>
+    </a>
+  </div>
+
+  <!-- User Info -->
+  <div class="px-6 py-5 border-b border-ink-800">
+    <div class="flex items-center gap-3">
+      <img src="<%= user.avatar || '/images/default-avatar.png' %>" alt="<%= user.displayName %>"
+        class="w-10 h-10 rounded-full object-cover border-2 border-accent-500">
+      <div>
+        <p class="text-white font-medium text-sm"><%= user.displayName %></p>
+        <p class="text-ink-400 text-xs">@<%= user.username %></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <nav class="flex-1 px-4 py-4 space-y-1">
+    <a href="/admin/dashboard"
+      class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition
+      <%= currentPage === 'dashboard' ? 'bg-ink-800 text-white' : 'text-ink-400 hover:text-white hover:bg-ink-800' %>">
+      <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      Dashboard
+    </a>
+    <a href="/admin/articles"
+      class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition
+      <%= currentPage === 'articles' ? 'bg-ink-800 text-white' : 'text-ink-400 hover:text-white hover:bg-ink-800' %>">
+      <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      Artikel
+    </a>
+    <a href="/admin/comments"
+      class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition
+      <%= currentPage === 'comments' ? 'bg-ink-800 text-white' : 'text-ink-400 hover:text-white hover:bg-ink-800' %>">
+      <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+      Komentar
+    </a>
+    <a href="/admin/profile"
+      class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition
+      <%= currentPage === 'profile' ? 'bg-ink-800 text-white' : 'text-ink-400 hover:text-white hover:bg-ink-800' %>">
+      <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+      Profil
+    </a>
+  </nav>
+
+  <!-- Bottom actions -->
+  <div class="px-4 py-4 border-t border-ink-800 space-y-1">
+    <a href="/admin/articles/new"
+      class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm bg-accent-500 text-white hover:bg-accent-600 transition font-medium">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Tulis Artikel
+    </a>
+    <a href="/" target="_blank"
+      class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-ink-400 hover:text-white hover:bg-ink-800 transition">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+      Lihat Blog
+    </a>
+    <a href="/admin/logout"
+      class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-ink-400 hover:text-red-400 hover:bg-ink-800 transition">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+      Logout
+    </a>
+  </div>
+</aside>

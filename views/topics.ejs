@@ -1,0 +1,78 @@
+<%- include('partials/head') %>
+<%- include('partials/navbar') %>
+
+<main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+  <div class="mb-8">
+    <div class="flex items-center gap-3 mb-2">
+      <a href="/" class="text-sm text-ink-400 hover:text-ink-700">Beranda</a>
+      <span class="text-ink-300">/</span>
+      <span class="text-sm font-medium text-accent-500">#<%= currentTag %></span>
+    </div>
+    <h1 class="font-serif text-3xl font-bold text-ink-900">
+      Topik: <span class="text-accent-500">#<%= currentTag %></span>
+    </h1>
+    <p class="text-ink-500 mt-2"><%= pagination.total %> artikel ditemukan</p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="lg:col-span-2">
+      <% if (articles && articles.length > 0) { %>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <% articles.forEach(article => { %>
+            <article class="bg-white rounded-xl border border-ink-200 overflow-hidden hover:shadow-md hover:border-ink-300 transition group">
+              <% if (article.coverImage) { %>
+                <div class="h-44 overflow-hidden">
+                  <img src="<%= article.coverImage %>" alt="<%= article.title %>"
+                    class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                </div>
+              <% } %>
+              <div class="p-5">
+                <div class="flex flex-wrap gap-1.5 mb-2">
+                  <% article.tags.slice(0,2).forEach(tag => { %>
+                    <a href="/topics/<%= tag %>" class="text-xs text-accent-500 font-medium">#<%= tag %></a>
+                  <% }) %>
+                </div>
+                <h2 class="font-serif font-semibold text-ink-900 text-lg leading-snug mb-2 line-clamp-2">
+                  <a href="/articles/<%= article.slug %>" class="hover:text-accent-500 transition"><%= article.title %></a>
+                </h2>
+                <p class="text-ink-500 text-sm line-clamp-2 mb-4"><%= article.excerpt %></p>
+                <div class="flex items-center gap-2 text-xs text-ink-400">
+                  <img src="<%= article.author.avatar %>" alt="" class="w-5 h-5 rounded-full object-cover">
+                  <span><%= article.author.displayName %></span>
+                  <span>·</span>
+                  <span><%= new Date(article.publishedAt).toLocaleDateString('id-ID', {day:'numeric', month:'short'}) %></span>
+                </div>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+
+        <!-- Pagination -->
+        <% if (pagination.totalPages > 1) { %>
+          <div class="flex items-center justify-center gap-2 mt-10">
+            <% for(let i = 1; i <= pagination.totalPages; i++) { %>
+              <a href="/topics/<%= currentTag %>?page=<%= i %>"
+                class="w-10 h-10 flex items-center justify-center rounded-lg text-sm transition
+                <%= pagination.page === i ? 'bg-ink-900 text-white' : 'bg-white border border-ink-200 text-ink-700 hover:border-ink-400' %>">
+                <%= i %>
+              </a>
+            <% } %>
+          </div>
+        <% } %>
+      <% } else { %>
+        <div class="text-center py-16 text-ink-400">
+          <p class="text-lg">Tidak ada artikel untuk topik ini</p>
+          <a href="/" class="mt-4 inline-block text-accent-500 hover:underline">← Kembali ke beranda</a>
+        </div>
+      <% } %>
+    </div>
+
+    <div><%- include('partials/sidebar') %></div>
+  </div>
+</main>
+
+<%- include('partials/footer') %>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<%- include('partials/head') %>
+<%- include('partials/navbar') %>
+
+<main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+  <h1 class="font-serif text-2xl font-bold text-ink-900 mb-2">
+    <% if (query) { %>Hasil pencarian: "<%= query %>"<% } else { %>Cari Artikel<% } %>
+  </h1>
+  <% if (query) { %>
+    <p class="text-ink-500 mb-8"><%= articles.length %> hasil ditemukan</p>
+  <% } %>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="lg:col-span-2">
+      <!-- Search Form -->
+      <form action="/search" method="GET" class="mb-8">
+        <div class="flex gap-3">
+          <input type="text" name="q" value="<%= query || '' %>" placeholder="Cari artikel..."
+            class="flex-1 px-4 py-3 border border-ink-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-400 transition">
+          <button type="submit" class="px-6 py-3 bg-ink-900 text-white rounded-xl hover:bg-ink-800 transition font-medium">
+            Cari
+          </button>
+        </div>
+      </form>
+
+      <% if (articles && articles.length > 0) { %>
+        <div class="space-y-4">
+          <% articles.forEach(article => { %>
+            <article class="bg-white rounded-xl border border-ink-200 p-5 hover:shadow-md hover:border-ink-300 transition flex gap-4">
+              <% if (article.coverImage) { %>
+                <img src="<%= article.coverImage %>" alt="" class="w-20 h-20 rounded-lg object-cover flex-shrink-0">
+              <% } %>
+              <div class="flex-1 min-w-0">
+                <div class="flex flex-wrap gap-1.5 mb-1">
+                  <% article.tags.slice(0,2).forEach(tag => { %>
+                    <a href="/topics/<%= tag %>" class="text-xs text-accent-500 font-medium">#<%= tag %></a>
+                  <% }) %>
+                </div>
+                <h2 class="font-serif font-semibold text-ink-900 text-lg mb-1">
+                  <a href="/articles/<%= article.slug %>" class="hover:text-accent-500 transition"><%= article.title %></a>
+                </h2>
+                <p class="text-ink-500 text-sm line-clamp-2"><%= article.excerpt %></p>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      <% } else if (query) { %>
+        <div class="text-center py-16 text-ink-400">
+          <p>Tidak ada artikel yang cocok dengan "<%= query %>"</p>
+        </div>
+      <% } %>
+    </div>
+
+    <div><%- include('partials/sidebar') %></div>
+  </div>
+</main>
+
+<%- include('partials/footer') %>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

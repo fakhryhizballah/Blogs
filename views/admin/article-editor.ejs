@@ -1,0 +1,379 @@
+<%- include('../partials/head') %>
+
+<div class="flex min-h-screen bg-ink-50">
+  <%- include('../partials/admin-sidebar', { user, currentPage }) %>
+
+  <main class="flex-1 overflow-auto">
+    <div class="px-6 py-8 max-w-4xl">
+
+      <!-- Breadcrumb -->
+      <div class="flex items-center gap-3 mb-6">
+        <a href="/admin/articles" class="text-sm text-ink-400 hover:text-ink-700 flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+          </svg>Kembali
+        </a>
+        <span class="text-ink-300">/</span>
+        <h1 class="font-serif text-xl font-semibold text-ink-900">
+          <%= article ? 'Edit Artikel' : 'Tulis Artikel Baru' %>
+        </h1>
+        <!-- Auto-save status -->
+        <span id="autosaveStatus" class="ml-auto text-xs text-ink-400 transition-opacity duration-500"></span>
+      </div>
+
+      <!-- Flash Error -->
+      <% if (flashError) { %>
+        <div class="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <%= flashError %>
+        </div>
+      <% } %>
+
+      <!-- Auto-save restore banner -->
+      <div id="autosaveBanner" class="hidden mb-6 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-sm flex items-center gap-3">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span class="flex-1">Ditemukan draft yang belum disimpan.</span>
+        <button id="restoreDraftBtn" class="font-semibold hover:underline">Pulihkan</button>
+        <span class="text-blue-400">·</span>
+        <button id="discardDraftBtn" class="text-blue-500 hover:underline">Abaikan</button>
+      </div>
+
+      <form
+        action="<%= article ? '/admin/articles/' + article._id + '/update' : '/admin/articles' %>"
+        method="POST"
+        id="articleForm"
+        data-article-id="<%= article ? article._id : 'new' %>">
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          <!-- ── MAIN CONTENT ────────────────────── -->
+          <div class="lg:col-span-2 space-y-5">
+
+            <!-- Judul -->
+            <div class="bg-white rounded-xl border border-ink-200 p-5">
+              <label for="titleInput" class="block text-sm font-medium text-ink-700 mb-2">Judul Artikel *</label>
+              <input
+                type="text" name="title" id="titleInput" required
+                value="<%= article ? article.title : '' %>"
+                placeholder="Tulis judul yang menarik…"
+                class="w-full px-0 py-2 text-xl font-serif font-semibold border-0 border-b-2 border-ink-200 focus:border-accent-500 focus:outline-none bg-transparent transition placeholder-ink-300">
+              <p class="text-xs text-ink-400 mt-2">Slug URL akan digenerate otomatis dari judul</p>
+            </div>
+
+            <!-- Editor -->
+            <div class="bg-white rounded-xl border border-ink-200 overflow-hidden">
+
+              <!-- Toolbar -->
+              <div id="editorToolbar" class="flex items-center gap-0.5 p-2 border-b border-ink-200 bg-ink-50 flex-wrap">
+                <span class="text-xs text-ink-400 font-medium px-1 mr-1">Format</span>
+
+                <button type="button" data-action="bold"    class="editor-btn" title="Bold (Ctrl+B)">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M6 12h8a4 4 0 000-8H6v8zm0 0h9a4 4 0 010 8H6v-8z"/>
+                  </svg>
+                </button>
+                <button type="button" data-action="italic"  class="editor-btn" title="Italic">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10 20l4-16m4 4l-4-4M6 16l4 4"/>
+                  </svg>
+                </button>
+                <button type="button" data-action="strikethrough" class="editor-btn text-xs" title="Strikethrough">S̶</button>
+
+                <div class="w-px h-5 bg-ink-200 mx-1"></div>
+
+                <button type="button" data-action="h2" class="editor-btn font-bold text-xs" title="Heading 2">H2</button>
+                <button type="button" data-action="h3" class="editor-btn font-bold text-xs" title="Heading 3">H3</button>
+                <button type="button" data-action="h4" class="editor-btn font-bold text-xs" title="Heading 4">H4</button>
+
+                <div class="w-px h-5 bg-ink-200 mx-1"></div>
+
+                <button type="button" data-action="ul"        class="editor-btn text-xs" title="Bullet List">• List</button>
+                <button type="button" data-action="ol"        class="editor-btn text-xs" title="Numbered List">1. List</button>
+                <button type="button" data-action="quote"     class="editor-btn text-xs" title="Blockquote">❝</button>
+
+                <div class="w-px h-5 bg-ink-200 mx-1"></div>
+
+                <button type="button" data-action="code"      class="editor-btn font-mono text-xs" title="Inline Code">`code`</button>
+                <button type="button" data-action="codeblock" class="editor-btn font-mono text-xs" title="Code Block">```</button>
+                <button type="button" data-action="link"      class="editor-btn text-xs" title="Link">🔗</button>
+                <button type="button" data-action="image"     class="editor-btn text-xs" title="Gambar">🖼</button>
+                <button type="button" data-action="table"     class="editor-btn text-xs" title="Tabel">⊞</button>
+                <button type="button" data-action="hr"        class="editor-btn text-xs" title="Garis Pemisah">—</button>
+
+                <!-- Preview toggle -->
+                <div class="ml-auto flex items-center gap-2">
+                  <span id="wordCount" class="text-xs text-ink-400"></span>
+                  <button type="button" id="previewToggle"
+                    class="px-3 py-1.5 text-xs bg-ink-200 text-ink-700 rounded-lg hover:bg-ink-300 transition font-medium">
+                    👁 Preview
+                  </button>
+                </div>
+              </div>
+
+              <!-- Textarea & Preview -->
+              <div class="relative min-h-80">
+                <textarea
+                  name="content" id="contentEditor" rows="22" required
+                  placeholder="Tulis konten di sini dengan Markdown…&#10;&#10;## Heading&#10;**Bold** dan *italic*&#10;&#10;- Poin 1&#10;- Poin 2&#10;&#10;```&#10;kode blok&#10;```"
+                  class="w-full p-5 text-sm font-mono text-ink-800 border-0 focus:outline-none resize-none leading-relaxed bg-white"><%= article ? article.content : '' %></textarea>
+
+                <div id="previewPane" class="hidden absolute inset-0 bg-white p-6 overflow-auto">
+                  <div id="previewContent" class="prose-content"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Excerpt -->
+            <div class="bg-white rounded-xl border border-ink-200 p-5">
+              <label for="excerptInput" class="block text-sm font-medium text-ink-700 mb-2">Ringkasan / Excerpt</label>
+              <textarea
+                name="excerpt" id="excerptInput" rows="3"
+                placeholder="Ringkasan singkat artikel — otomatis dari konten jika dikosongkan"
+                class="w-full px-4 py-3 bg-ink-50 border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-400 resize-none transition"><%= article ? article.excerpt : '' %></textarea>
+            </div>
+
+            <!-- Meta Description -->
+            <div class="bg-white rounded-xl border border-ink-200 p-5">
+              <label for="metaDesc" class="block text-sm font-medium text-ink-700 mb-2">
+                Meta Description (SEO)
+                <span id="metaCharCount" class="font-normal ml-1 text-ink-400">0/160</span>
+              </label>
+              <textarea
+                name="metaDescription" id="metaDesc" rows="2" maxlength="160"
+                placeholder="Deskripsi singkat untuk mesin pencari (maks 160 karakter)"
+                class="w-full px-4 py-3 bg-ink-50 border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-400 resize-none transition"><%= article ? article.metaDescription : '' %></textarea>
+            </div>
+
+            <!-- Media Lampiran -->
+            <div class="bg-white rounded-xl border border-ink-200 p-5">
+              <h3 class="font-semibold text-ink-800 mb-3">File Lampiran</h3>
+
+              <!-- Tombol tipe -->
+              <div class="flex flex-wrap gap-2 mb-4">
+                <button type="button" data-media-type="image"
+                  class="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-sm hover:bg-blue-100 transition">
+                  🖼️ Tambah Foto
+                </button>
+                <button type="button" data-media-type="video"
+                  class="flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-sm hover:bg-purple-100 transition">
+                  🎥 Tambah Video
+                </button>
+                <button type="button" data-media-type="pdf"
+                  class="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm hover:bg-red-100 transition">
+                  📄 Tambah PDF
+                </button>
+              </div>
+
+              <!-- Upload panel -->
+              <div id="uploadPanel" class="hidden mb-4 p-4 bg-ink-50 rounded-xl border border-ink-200">
+                <div class="flex items-center justify-between mb-3">
+                  <p class="text-sm font-medium text-ink-700">
+                    Tambah <span id="uploadTypeLabel"></span>
+                  </p>
+                  <button type="button" id="closeUploadPanel"
+                    class="text-ink-400 hover:text-ink-700 text-lg leading-none">×</button>
+                </div>
+                <p class="text-xs text-ink-500 mb-3">Upload file ke API Anda, lalu paste URL-nya di bawah ini.</p>
+                <div class="flex gap-2 flex-wrap">
+                  <input type="text" id="mediaUrlInput"
+                    class="flex-1 min-w-48 px-3 py-2 border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-400 bg-white">
+                  <input type="text" id="mediaNameInput" placeholder="Nama file (opsional)"
+                    class="w-44 px-3 py-2 border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-400 bg-white">
+                  <button type="button" id="addMediaBtn"
+                    class="px-4 py-2 bg-ink-900 text-white rounded-lg text-sm hover:bg-ink-800 transition font-medium">
+                    Tambah
+                  </button>
+                </div>
+              </div>
+
+              <!-- Daftar media -->
+              <div id="mediaList" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+              <input type="hidden" name="mediaFiles" id="mediaFilesInput"
+                value="<%= article && article.mediaFiles ? JSON.stringify(article.mediaFiles) : '[]' %>">
+            </div>
+
+          </div><!-- /main -->
+
+
+          <!-- ── SIDEBAR SETTINGS ────────────────── -->
+          <div class="space-y-5">
+
+            <!-- Status Publikasi -->
+            <div class="bg-white rounded-xl border border-ink-200 p-5">
+              <h3 class="font-semibold text-ink-800 mb-4">Pengaturan Publikasi</h3>
+
+              <fieldset class="space-y-3">
+                <legend class="text-sm font-medium text-ink-600 mb-2">Status Artikel</legend>
+
+                <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-ink-50 transition">
+                  <input type="radio" name="status" value="draft"
+                    <%= (!article || article.status === 'draft') ? 'checked' : '' %>
+                    class="mt-0.5 accent-accent-500">
+                  <div>
+                    <p class="text-sm font-medium text-ink-800">Draft</p>
+                    <p class="text-xs text-ink-500">Tidak tampil di publik</p>
+                  </div>
+                </label>
+
+                <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-ink-50 transition">
+                  <input type="radio" name="status" value="published"
+                    <%= article && article.status === 'published' ? 'checked' : '' %>
+                    class="mt-0.5 accent-accent-500">
+                  <div>
+                    <p class="text-sm font-medium text-ink-800">Publikasi</p>
+                    <p class="text-xs text-ink-500">Tampil di blog publik</p>
+                  </div>
+                </label>
+
+                <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-ink-50 transition">
+                  <input type="radio" name="status" value="private"
+                    <%= article && article.status === 'private' ? 'checked' : '' %>
+                    class="mt-0.5 accent-accent-500">
+                  <div>
+                    <p class="text-sm font-medium text-ink-800">Private</p>
+                    <p class="text-xs text-ink-500">Hanya admin yang bisa akses</p>
+                  </div>
+                </label>
+              </fieldset>
+
+              <div class="mt-5 pt-4 border-t border-ink-100">
+                <button type="submit"
+                  class="w-full py-2.5 bg-ink-900 text-white rounded-xl text-sm font-semibold hover:bg-ink-800 active:scale-95 transition">
+                  <%= article ? 'Simpan Perubahan' : 'Simpan Artikel' %>
+                </button>
+              </div>
+            </div>
+
+            <!-- Gambar Sampul -->
+            <div class="bg-white rounded-xl border border-ink-200 p-5">
+              <h3 class="font-semibold text-ink-800 mb-3">Gambar Sampul</h3>
+              <input
+                type="text" name="coverImage" id="coverImageUrl"
+                placeholder="Paste URL gambar sampul…"
+                value="<%= article ? article.coverImage : '' %>"
+                class="w-full px-3 py-2.5 border border-ink-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-400 transition mb-2">
+              <button type="button" id="coverPreviewBtn"
+                class="text-xs text-accent-500 hover:text-accent-600 font-medium">
+                Preview gambar →
+              </button>
+              <div id="coverPreview" class="mt-3 <%= article && article.coverImage ? '' : 'hidden' %>">
+                <img src="<%= article ? article.coverImage : '' %>" id="coverPreviewImg"
+                  alt="" class="w-full h-32 object-cover rounded-lg border border-ink-200">
+              </div>
+            </div>
+
+            <!-- Tag Manager -->
+            <div class="bg-white rounded-xl border border-ink-200 p-5">
+              <h3 class="font-semibold text-ink-800 mb-1">Topik / Tag</h3>
+              <p id="tagHint" class="text-xs text-ink-400 mb-3">Tekan Enter atau koma untuk menambah</p>
+
+              <!-- Chip container -->
+              <div
+                id="tagChipsContainer"
+                class="tag-input-area min-h-10 w-full flex flex-wrap gap-1.5 items-center px-3 py-2 border border-ink-200 rounded-lg cursor-text focus-within:ring-2 focus-within:ring-accent-400 transition bg-white">
+                <div class="flex-1 min-w-20">
+                  <input
+                    type="text" id="tagInputField"
+                    placeholder="Ketik tag…"
+                    autocomplete="off"
+                    class="w-full outline-none text-sm text-ink-800 placeholder-ink-400 bg-transparent">
+                </div>
+              </div>
+
+              <!-- Hidden input untuk form submit -->
+              <input type="hidden" name="tags" id="tagsHidden"
+                value="<%= article ? article.tags.join(', ') : '' %>">
+            </div>
+
+            <!-- Info Artikel (edit mode) -->
+            <% if (article) { %>
+            <div class="bg-ink-50 rounded-xl border border-ink-200 p-5">
+              <h3 class="text-sm font-semibold text-ink-800 mb-3">Info Artikel</h3>
+              <dl class="space-y-2 text-xs">
+                <div class="flex justify-between text-ink-600">
+                  <dt>Dibuat</dt>
+                  <dd><%= new Date(article.createdAt).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'}) %></dd>
+                </div>
+                <div class="flex justify-between text-ink-600">
+                  <dt>Diperbarui</dt>
+                  <dd><%= new Date(article.updatedAt).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'}) %></dd>
+                </div>
+                <div class="flex justify-between text-ink-500">
+                  <dt>Tayangan</dt>   <dd><%= article.views.toLocaleString('id-ID') %></dd>
+                </div>
+                <div class="flex justify-between text-ink-500">
+                  <dt>Komentar</dt>   <dd><%= article.comments.length %></dd>
+                </div>
+                <div class="flex justify-between text-ink-500">
+                  <dt>Likes</dt>      <dd><%= article.likes.length %></dd>
+                </div>
+                <% if (article.publishedAt) { %>
+                <div class="flex justify-between text-ink-500">
+                  <dt>Tayang sejak</dt>
+                  <dd><%= new Date(article.publishedAt).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'}) %></dd>
+                </div>
+                <% } %>
+              </dl>
+
+              <% if (article.status === 'published') { %>
+                <a href="/articles/<%= article.slug %>" target="_blank"
+                  class="mt-4 flex items-center gap-1.5 text-xs text-accent-500 hover:text-accent-600 font-medium">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                  </svg>
+                  Lihat di blog
+                </a>
+              <% } %>
+            </div>
+            <% } %>
+
+          </div><!-- /sidebar -->
+        </div><!-- /grid -->
+      </form>
+    </div>
+  </main>
+</div>
+
+<style>
+.editor-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 5px 7px; border-radius: 6px; color: #584e40;
+  transition: background .15s, color .15s; min-width: 28px; height: 28px;
+}
+.editor-btn:hover { background: #ede9e0; color: #1e1a12; }
+.editor-btn:active { background: #d9d2c2; transform: scale(.95); }
+
+.tag-chip { animation: chipIn .15s ease; }
+@keyframes chipIn { from { opacity:0; transform:scale(.85); } to { opacity:1; transform:scale(1); } }
+
+/* Prose preview styles */
+#previewContent h1 { font-family:'Playfair Display',serif; font-size:2rem; font-weight:700; margin:1.5rem 0 1rem; color:#1e1a12; }
+#previewContent h2 { font-family:'Playfair Display',serif; font-size:1.5rem; font-weight:600; margin:1.5rem 0 .75rem; color:#1e1a12; border-bottom:2px solid #ede9e0; padding-bottom:.5rem; }
+#previewContent h3 { font-size:1.2rem; font-weight:600; margin:1.25rem 0 .6rem; color:#3d3529; }
+#previewContent h4 { font-size:1rem; font-weight:600; margin:1rem 0 .4rem; color:#3d3529; }
+#previewContent p { margin:.85rem 0; line-height:1.8; color:#3d3529; }
+#previewContent strong { font-weight:700; color:#1e1a12; }
+#previewContent em { font-style:italic; }
+#previewContent del { text-decoration:line-through; color:#8b7a63; }
+#previewContent ul,#previewContent ol { padding-left:1.5rem; margin:.85rem 0; }
+#previewContent li { margin:.3rem 0; line-height:1.7; color:#3d3529; }
+#previewContent blockquote { border-left:4px solid #c9612a; padding:.5rem 1.25rem; margin:1.25rem 0; background:#f7f6f3; border-radius:0 .5rem .5rem 0; font-style:italic; color:#584e40; }
+#previewContent code { background:#ede9e0; padding:.15rem .4rem; border-radius:4px; font-family:'DM Mono',monospace; font-size:.875em; color:#c9612a; }
+#previewContent pre { background:#1e1a12; color:#ede9e0; padding:1rem 1.25rem; border-radius:.75rem; overflow-x:auto; margin:1rem 0; }
+#previewContent pre code { background:none; color:inherit; padding:0; }
+#previewContent a { color:#c9612a; text-decoration:underline; }
+#previewContent img { max-width:100%; border-radius:.75rem; margin:1rem 0; }
+#previewContent hr { border:none; border-top:2px solid #ede9e0; margin:1.5rem 0; }
+#previewContent table { width:100%; border-collapse:collapse; margin:1rem 0; font-size:.9rem; }
+#previewContent td,#previewContent th { padding:.5rem .75rem; border:1px solid #d9d2c2; }
+#previewContent th { background:#ede9e0; font-weight:600; }
+</style>
+
+<script src="/js/editor.js"></script>
+</body>
+</html>
