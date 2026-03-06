@@ -117,12 +117,12 @@
               <!-- Textarea & Preview -->
               <div class="relative min-h-80">
                 <textarea
-                  name="content" id="contentEditor" rows="22" required
+                  name="contentRaw" id="contentEditor" rows="22"
                   placeholder="Tulis konten di sini dengan Markdown…&#10;&#10;## Heading&#10;**Bold** dan *italic*&#10;&#10;- Poin 1&#10;- Poin 2&#10;&#10;```&#10;kode blok&#10;```"
-                  class="w-full p-5 text-sm font-mono text-ink-800 border-0 focus:outline-none resize-none leading-relaxed bg-white"><%= article ? article.content : '' %></textarea>
+                  class="w-full p-5 text-sm font-mono text-ink-800 border-0 focus:outline-none resize-none leading-relaxed bg-white"><%= article ? (article.contentRaw || article.content) : '' %></textarea>
 
                 <div id="previewPane" class="hidden absolute inset-0 bg-white p-6 overflow-auto">
-                  <div id="previewContent" class="prose-content"></div>
+                  <div id="previewContent" class="prose-content p-1"></div>
                 </div>
               </div>
             </div>
@@ -345,35 +345,14 @@
   padding: 5px 7px; border-radius: 6px; color: #584e40;
   transition: background .15s, color .15s; min-width: 28px; height: 28px;
 }
-.editor-btn:hover { background: #ede9e0; color: #1e1a12; }
+.editor-btn:hover  { background: #ede9e0; color: #1e1a12; }
 .editor-btn:active { background: #d9d2c2; transform: scale(.95); }
-
 .tag-chip { animation: chipIn .15s ease; }
 @keyframes chipIn { from { opacity:0; transform:scale(.85); } to { opacity:1; transform:scale(1); } }
-
-/* Prose preview styles */
-#previewContent h1 { font-family:'Playfair Display',serif; font-size:2rem; font-weight:700; margin:1.5rem 0 1rem; color:#1e1a12; }
-#previewContent h2 { font-family:'Playfair Display',serif; font-size:1.5rem; font-weight:600; margin:1.5rem 0 .75rem; color:#1e1a12; border-bottom:2px solid #ede9e0; padding-bottom:.5rem; }
-#previewContent h3 { font-size:1.2rem; font-weight:600; margin:1.25rem 0 .6rem; color:#3d3529; }
-#previewContent h4 { font-size:1rem; font-weight:600; margin:1rem 0 .4rem; color:#3d3529; }
-#previewContent p { margin:.85rem 0; line-height:1.8; color:#3d3529; }
-#previewContent strong { font-weight:700; color:#1e1a12; }
-#previewContent em { font-style:italic; }
-#previewContent del { text-decoration:line-through; color:#8b7a63; }
-#previewContent ul,#previewContent ol { padding-left:1.5rem; margin:.85rem 0; }
-#previewContent li { margin:.3rem 0; line-height:1.7; color:#3d3529; }
-#previewContent blockquote { border-left:4px solid #c9612a; padding:.5rem 1.25rem; margin:1.25rem 0; background:#f7f6f3; border-radius:0 .5rem .5rem 0; font-style:italic; color:#584e40; }
-#previewContent code { background:#ede9e0; padding:.15rem .4rem; border-radius:4px; font-family:'DM Mono',monospace; font-size:.875em; color:#c9612a; }
-#previewContent pre { background:#1e1a12; color:#ede9e0; padding:1rem 1.25rem; border-radius:.75rem; overflow-x:auto; margin:1rem 0; }
-#previewContent pre code { background:none; color:inherit; padding:0; }
-#previewContent a { color:#c9612a; text-decoration:underline; }
-#previewContent img { max-width:100%; border-radius:.75rem; margin:1rem 0; }
-#previewContent hr { border:none; border-top:2px solid #ede9e0; margin:1.5rem 0; }
-#previewContent table { width:100%; border-collapse:collapse; margin:1rem 0; font-size:.9rem; }
-#previewContent td,#previewContent th { padding:.5rem .75rem; border:1px solid #d9d2c2; }
-#previewContent th { background:#ede9e0; font-weight:600; }
+/* Preview pakai style yang sama dengan halaman publik via class prose-content di style.css */
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="/js/editor.js"></script>
 </body>
 </html>

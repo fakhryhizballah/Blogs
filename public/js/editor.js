@@ -1,605 +1,528 @@
 /**
  * editor.js — Vanilla JS untuk halaman article editor (admin)
- * Meliputi: toolbar editor, markdown preview, tag manager, media manager,
- *           cover image preview, meta char counter, auto-save draft
+ * Konten ditulis dalam Markdown → disimpan sebagai contentRaw
+ * Server mengkonversi ke HTML dengan marked.js saat save
  */
 
 'use strict';
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════
    TOOLBAR EDITOR
-   Operasi teks pada <textarea> #contentEditor
-───────────────────────────────────────────── */
+═══════════════════════════════════════════════════════════════════ */
 const EditorToolbar = (() => {
-  let textarea = null;
+  let ta = null; // textarea #contentEditor
 
+  // Definisi semua aksi toolbar
   const ACTIONS = {
-    bold        : { wrap: ['**', '**'],         placeholder: 'teks tebal' },
-    italic      : { wrap: ['*', '*'],            placeholder: 'teks miring' },
-    strikethrough: { wrap: ['~~', '~~'],         placeholder: 'teks coret' },
-    h2          : { line: '## ',                 placeholder: 'Judul Besar' },
-    h3          : { line: '### ',                placeholder: 'Sub Judul' },
-    h4          : { line: '#### ',              placeholder: 'Sub-Sub Judul' },
-    code        : { wrap: ['`', '`'],            placeholder: 'kode' },
-    codeblock   : { block: '```\n$1\n```',       placeholder: 'kode di sini' },
-    quote       : { line: '> ',                  placeholder: 'kutipan' },
-    ul          : { line: '- ',                  placeholder: 'item daftar' },
-    ol          : { line: '1. ',                 placeholder: 'item bernomor' },
-    hr          : { insert: '\n---\n' },
-    link        : { snippet: '[teks link](https://url.com)' },
-    image       : { snippet: '![alt text](https://url-gambar.com)' },
-    table       : { insert: '\n| Kolom 1 | Kolom 2 | Kolom 3 |\n|---------|---------|----------|\n| data    | data    | data     |\n' },
+    bold         : { wrap: ['**', '**'],   placeholder: 'teks tebal' },
+    italic       : { wrap: ['*', '*'],     placeholder: 'teks miring' },
+    strikethrough: { wrap: ['~~', '~~'],   placeholder: 'teks coret' },
+    h2           : { line: '## ',          placeholder: 'Judul Besar' },
+    h3           : { line: '### ',         placeholder: 'Sub Judul' },
+    h4           : { line: '#### ',        placeholder: 'Sub-Sub Judul' },
+    code         : { wrap: ['`', '`'],     placeholder: 'kode' },
+    codeblock    : { block: '```\n$1\n```',placeholder: 'kode di sini' },
+    quote        : { line: '> ',           placeholder: 'teks kutipan' },
+    ul           : { line: '- ',           placeholder: 'item daftar' },
+    ol           : { line: '1. ',          placeholder: 'item bernomor' },
+    hr           : { insert: '\n\n---\n\n' },
+    link         : { snippet: '[teks link](https://url.com)' },
+    image        : { snippet: '![deskripsi gambar](https://url-gambar.com)' },
+    table        : { insert: '\n| Kolom 1 | Kolom 2 | Kolom 3 |\n|---------|---------|----------|\n| data    | data    | data     |\n' },
   };
 
   function init() {
-    textarea = document.getElementById('contentEditor');
-    if (!textarea) return;
+    ta = document.getElementById('contentEditor');
+    if (!ta) return;
 
-    // Delegasi event ke toolbar container
     const toolbar = document.getElementById('editorToolbar');
     if (!toolbar) return;
 
-    toolbar.addEventListener('click', (e) => {
+    // Event delegation — satu listener untuk semua tombol
+    toolbar.addEventListener('mousedown', (e) => {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
-      e.preventDefault();
+      e.preventDefault(); // cegah textarea kehilangan fokus
       applyAction(btn.dataset.action);
-      textarea.focus();
     });
 
-    // Tab key → insert 2 spasi, bukan berpindah fokus
-    textarea.addEventListener('keydown', (e) => {
+    // Tab → 2 spasi
+    ta.addEventListener('keydown', (e) => {
       if (e.key === 'Tab') {
         e.preventDefault();
-        insertAtCursor('  ');
+        insertAt(ta.selectionStart, '  ');
       }
     });
+
+    // Keyboard shortcuts
+    ta.addEventListener('keydown', (e) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl) return;
+      if (e.key === 'b') { e.preventDefault(); applyAction('bold'); }
+      if (e.key === 'i') { e.preventDefault(); applyAction('italic'); }
+      if (e.key === 'k') { e.preventDefault(); applyAction('link'); }
+    });
+
+    // Live update preview & word count saat mengetik
+    ta.addEventListener('input', () => {
+      LivePreview.update();
+      updateWordCount();
+    });
+
+    updateWordCount();
   }
 
-  function applyAction(actionName) {
-    const cfg = ACTIONS[actionName];
+  function applyAction(name) {
+    if (!ta) return;
+    const cfg     = ACTIONS[name];
     if (!cfg) return;
 
-    const { selectionStart: start, selectionEnd: end, value } = textarea;
-    const selected = value.slice(start, end);
+    const start    = ta.selectionStart;
+    const end      = ta.selectionEnd;
+    const selected = ta.value.slice(start, end);
 
     if (cfg.wrap) {
-      const [before, after] = cfg.wrap;
-      const text = selected || cfg.placeholder;
-      replaceSelection(before + text + after, start, end, before.length, before.length + text.length);
+      const [pre, post] = cfg.wrap;
+      // Toggle: jika sudah wrapped → unwrap
+      const before = ta.value.slice(Math.max(0, start - pre.length), start);
+      const after  = ta.value.slice(end, end + post.length);
+      if (before === pre && after === post) {
+        // Unwrap
+        replaceRange(
+          ta.value.slice(0, start - pre.length) + selected + ta.value.slice(end + post.length),
+          start - pre.length, start - pre.length + selected.length
+        );
+      } else {
+        const text = selected || cfg.placeholder;
+        const repl = pre + text + post;
+        replaceRange(
+          ta.value.slice(0, start) + repl + ta.value.slice(end),
+          start + pre.length,
+          start + pre.length + text.length
+        );
+      }
 
     } else if (cfg.line) {
-      // Tambah prefix di awal baris
-      const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-      const lineEnd   = value.indexOf('\n', end);
-      const endPos    = lineEnd === -1 ? value.length : lineEnd;
-      const line      = value.slice(lineStart, endPos);
-      const newLine   = cfg.line + (selected || line || cfg.placeholder);
-      textarea.value  = value.slice(0, lineStart) + newLine + value.slice(endPos);
-      const newPos    = lineStart + newLine.length;
-      textarea.setSelectionRange(newPos, newPos);
+      // Prefix setiap baris yang terseleksi
+      const lStart = ta.value.lastIndexOf('\n', start - 1) + 1;
+      const lEnd   = ta.value.indexOf('\n', end);
+      const ePos   = lEnd === -1 ? ta.value.length : lEnd;
+      const lines  = ta.value.slice(lStart, ePos).split('\n');
+      const newLines = lines.map(l => {
+        // Toggle: hapus prefix jika sudah ada
+        if (l.startsWith(cfg.line)) return l.slice(cfg.line.length);
+        return cfg.line + (l || cfg.placeholder);
+      });
+      const newText = newLines.join('\n');
+      replaceRange(
+        ta.value.slice(0, lStart) + newText + ta.value.slice(ePos),
+        lStart, lStart + newText.length
+      );
 
     } else if (cfg.block) {
-      const text   = selected || cfg.placeholder;
-      const result = cfg.block.replace('$1', text);
-      const before = '\n' + result + '\n';
-      replaceSelection(before, start, end, 4, 4 + text.length);
+      const text = selected || cfg.placeholder;
+      const repl = '\n' + cfg.block.replace('$1', text) + '\n';
+      replaceRange(
+        ta.value.slice(0, start) + repl + ta.value.slice(end),
+        start + 4, start + 4 + text.length
+      );
 
     } else if (cfg.insert) {
-      insertAtCursor(cfg.insert);
+      insertAt(start, cfg.insert);
 
     } else if (cfg.snippet) {
-      replaceSelection(cfg.snippet, start, end, 0, cfg.snippet.length);
+      const repl = selected
+        ? cfg.snippet.replace('teks link', selected).replace('deskripsi gambar', selected)
+        : cfg.snippet;
+      replaceRange(
+        ta.value.slice(0, start) + repl + ta.value.slice(end),
+        start, start + repl.length
+      );
     }
 
-    // Update preview jika sedang aktif
-    MarkdownPreview.update();
+    ta.focus();
+    LivePreview.update();
   }
 
-  function replaceSelection(text, start, end, selectFrom, selectTo) {
-    const { value } = textarea;
-    textarea.value = value.slice(0, start) + text + value.slice(end);
-    textarea.setSelectionRange(start + selectFrom, start + selectTo);
+  function replaceRange(newValue, selFrom, selTo) {
+    ta.value = newValue;
+    ta.setSelectionRange(selFrom, selTo);
   }
 
-  function insertAtCursor(text) {
-    const { selectionStart: pos, value } = textarea;
-    textarea.value = value.slice(0, pos) + text + value.slice(pos);
-    textarea.setSelectionRange(pos + text.length, pos + text.length);
+  function insertAt(pos, text) {
+    ta.value = ta.value.slice(0, pos) + text + ta.value.slice(pos);
+    ta.setSelectionRange(pos + text.length, pos + text.length);
+  }
+
+  function updateWordCount() {
+    const el = document.getElementById('wordCount');
+    if (!el || !ta) return;
+    const words = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0;
+    const mins  = Math.max(1, Math.ceil(words / 200));
+    el.textContent = `${words.toLocaleString()} kata · ~${mins} mnt baca`;
   }
 
   return { init };
 })();
 
 
-/* ─────────────────────────────────────────────
-   MARKDOWN PREVIEW
-───────────────────────────────────────────── */
-const MarkdownPreview = (() => {
-  let textarea    = null;
-  let previewPane = null;
-  let previewBody = null;
-  let toggleBtn   = null;
-  let active      = false;
-
-  const RULES = [
-    // Headings
-    [/^#{4} (.+)$/gm,          '<h4>$1</h4>'],
-    [/^#{3} (.+)$/gm,          '<h3>$1</h3>'],
-    [/^#{2} (.+)$/gm,          '<h2>$1</h2>'],
-    [/^# (.+)$/gm,             '<h1>$1</h1>'],
-    // Bold & italic
-    [/\*\*\*(.+?)\*\*\*/g,     '<strong><em>$1</em></strong>'],
-    [/\*\*(.+?)\*\*/g,         '<strong>$1</strong>'],
-    [/\*(.+?)\*/g,             '<em>$1</em>'],
-    [/~~(.+?)~~/g,             '<del>$1</del>'],
-    // Code block (must be before inline code)
-    [/```[\w]*\n([\s\S]+?)```/gm, '<pre><code>$1</code></pre>'],
-    // Inline code
-    [/`([^`]+)`/g,             '<code>$1</code>'],
-    // Blockquote
-    [/^> (.+)$/gm,             '<blockquote>$1</blockquote>'],
-    // HR
-    [/^---$/gm,                '<hr>'],
-    // Table (basic)
-    [/^\|(.+)\|$/gm,           (_, row) => {
-      const cells = row.split('|').map(c => c.trim());
-      return cells.every(c => /^[-:]+$/.test(c))
-        ? '' // separator row
-        : '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
-    }],
-    // Lists
-    [/^- (.+)$/gm,             '<li class="ul-item">$1</li>'],
-    [/^\d+\. (.+)$/gm,         '<li class="ol-item">$1</li>'],
-    // Links & images
-    [/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">'],
-    [/\[([^\]]+)\]\(([^)]+)\)/g,  '<a href="$2" target="_blank">$1</a>'],
-    // Paragraphs
-    [/\n\n/g,                  '</p><p>'],
-    [/\n/g,                    '<br>'],
-  ];
-
-  function parseMarkdown(md) {
-    let html = md;
-    for (const [pattern, replacement] of RULES) {
-      html = html.replace(pattern, replacement);
-    }
-    // Wrap adjacent li items
-    html = html
-      .replace(/(<li class="ul-item">.*?<\/li>(\s*<br>)?)+/g, m => `<ul>${m.replace(/<br>/g,'')}</ul>`)
-      .replace(/(<li class="ol-item">.*?<\/li>(\s*<br>)?)+/g, m => `<ol>${m.replace(/<br>/g,'')}</ol>`);
-    return '<p>' + html + '</p>';
-  }
-
-  function update() {
-    if (!active || !textarea || !previewBody) return;
-    previewBody.innerHTML = parseMarkdown(textarea.value);
-  }
+/* ═══════════════════════════════════════════════════════════════════
+   LIVE PREVIEW
+   Gunakan marked.js (CDN) untuk render Markdown → HTML
+═══════════════════════════════════════════════════════════════════ */
+const LivePreview = (() => {
+  let ta       = null;
+  let pane     = null;
+  let body     = null;
+  let toggleBtn = null;
+  let active   = false;
 
   function init() {
-    textarea    = document.getElementById('contentEditor');
-    previewPane = document.getElementById('previewPane');
-    previewBody = document.getElementById('previewContent');
-    toggleBtn   = document.getElementById('previewToggle');
-
-    if (!textarea || !toggleBtn) return;
+    ta        = document.getElementById('contentEditor');
+    pane      = document.getElementById('previewPane');
+    body      = document.getElementById('previewContent');
+    toggleBtn = document.getElementById('previewToggle');
+    if (!ta || !toggleBtn) return;
 
     toggleBtn.addEventListener('click', () => {
       active = !active;
       if (active) {
         update();
-        previewPane.classList.remove('hidden');
-        textarea.classList.add('hidden');
-        toggleBtn.textContent = '✏️ Edit';
-        toggleBtn.classList.add('bg-accent-500', 'text-white');
-        toggleBtn.classList.remove('bg-ink-200', 'text-ink-700');
+        pane.classList.remove('hidden');
+        ta.classList.add('hidden');
+        toggleBtn.innerHTML = '✏️ Edit';
+        toggleBtn.classList.add('bg-accent-500/10', 'text-accent-600', 'border-accent-300');
+        toggleBtn.classList.remove('bg-ink-100', 'text-ink-600');
       } else {
-        previewPane.classList.add('hidden');
-        textarea.classList.remove('hidden');
-        toggleBtn.textContent = '👁 Preview';
-        toggleBtn.classList.remove('bg-accent-500', 'text-white');
-        toggleBtn.classList.add('bg-ink-200', 'text-ink-700');
+        pane.classList.add('hidden');
+        ta.classList.remove('hidden');
+        toggleBtn.innerHTML = '👁 Preview';
+        toggleBtn.classList.remove('bg-accent-500/10', 'text-accent-600', 'border-accent-300');
+        toggleBtn.classList.add('bg-ink-100', 'text-ink-600');
       }
     });
-
-    // Live update word count
-    textarea.addEventListener('input', () => {
-      updateWordCount();
-      update();
-    });
-
-    updateWordCount();
   }
 
-  function updateWordCount() {
-    const el = document.getElementById('wordCount');
-    if (!el || !textarea) return;
-    const words = textarea.value.trim() ? textarea.value.trim().split(/\s+/).length : 0;
-    const mins  = Math.max(1, Math.ceil(words / 200));
-    el.textContent = `${words} kata · ~${mins} mnt baca`;
+  function update() {
+    if (!active || !ta || !body) return;
+
+    // Gunakan marked jika tersedia (dimuat via CDN di head.ejs admin)
+    if (typeof window.marked !== 'undefined') {
+      body.innerHTML = window.marked.parse(ta.value || '_Belum ada konten..._');
+    } else {
+      // Fallback parser sederhana jika marked belum load
+      body.innerHTML = simpleMarkdown(ta.value);
+    }
+  }
+
+  // Fallback markdown parser (basic)
+  function simpleMarkdown(md) {
+    if (!md) return '<p class="text-ink-400 italic">Belum ada konten…</p>';
+    let h = md
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+      .replace(/^### (.+)$/gm,  '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm,   '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm,    '<h1>$1</h1>')
+      .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+      .replace(/\*\*(.+?)\*\*/g,     '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g,         '<em>$1</em>')
+      .replace(/~~(.+?)~~/g,         '<del>$1</del>')
+      .replace(/```([\s\S]+?)```/g,  '<pre><code>$1</code></pre>')
+      .replace(/`([^`]+)`/g,         '<code>$1</code>')
+      .replace(/^> (.+)$/gm,         '<blockquote>$1</blockquote>')
+      .replace(/^---$/gm,            '<hr>')
+      .replace(/^- (.+)$/gm,         '<li>$1</li>')
+      .replace(/^\d+\. (.+)$/gm,     '<li>$1</li>')
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g,  '<a href="$2" target="_blank">$1</a>')
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g,   '<br>');
+    return '<p>' + h + '</p>';
   }
 
   return { init, update };
 })();
 
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════
    TAG MANAGER
-   Input tag dengan chip visual, Enter/koma untuk tambah
-───────────────────────────────────────────── */
+   Chip visual, Enter/koma untuk tambah, Backspace untuk hapus terakhir
+═══════════════════════════════════════════════════════════════════ */
 const TagManager = (() => {
-  let tags       = [];
+  let tags        = [];
   let hiddenInput = null;
-  let container   = null;
-  let input       = null;
+  let chipsWrap   = null;
+  let inputField  = null;
 
   function init() {
-    container   = document.getElementById('tagChipsContainer');
-    input       = document.getElementById('tagInputField');
+    chipsWrap   = document.getElementById('tagChipsContainer');
+    inputField  = document.getElementById('tagInputField');
     hiddenInput = document.getElementById('tagsHidden');
+    if (!chipsWrap || !inputField || !hiddenInput) return;
 
-    if (!container || !input || !hiddenInput) return;
+    // Muat tag awal (mode edit)
+    const init = hiddenInput.value;
+    if (init) init.split(',').map(t => t.trim()).filter(Boolean).forEach(addTag);
 
-    // Load existing tags dari hidden input (mode edit)
-    const existing = hiddenInput.value;
-    if (existing) {
-      existing.split(',').map(t => t.trim()).filter(Boolean).forEach(addTag);
-    }
-
-    input.addEventListener('keydown', (e) => {
+    inputField.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ',') {
         e.preventDefault();
-        const val = input.value.trim().replace(/,$/, '');
-        if (val) addTag(val);
-        input.value = '';
+        commit();
       }
-      // Backspace pada input kosong → hapus tag terakhir
-      if (e.key === 'Backspace' && input.value === '' && tags.length > 0) {
+      if (e.key === 'Backspace' && inputField.value === '' && tags.length > 0) {
         removeTag(tags[tags.length - 1]);
       }
     });
+    inputField.addEventListener('blur', commit);
 
-    input.addEventListener('blur', () => {
-      const val = input.value.trim();
-      if (val) { addTag(val); input.value = ''; }
-    });
-
-    // Klik area container → fokus input
-    container.addEventListener('click', (e) => {
-      if (e.target === container || e.target.classList.contains('tag-input-area')) {
-        input.focus();
-      }
-    });
-
-    // Hapus chip via event delegation
-    container.addEventListener('click', (e) => {
-      const removeBtn = e.target.closest('[data-remove-tag]');
-      if (removeBtn) removeTag(removeBtn.dataset.removeTag);
+    // Event delegation hapus chip
+    chipsWrap.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-remove-tag]');
+      if (btn) removeTag(btn.dataset.removeTag);
+      else     inputField.focus();
     });
   }
 
+  function commit() {
+    const val = inputField.value.replace(/,/g,'').trim();
+    if (val) { addTag(val); inputField.value = ''; }
+  }
+
   function addTag(raw) {
-    const tag = raw.toLowerCase().trim().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    const tag = raw.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g,'-').replace(/^-|-$/g,'');
     if (!tag || tags.includes(tag) || tags.length >= 10) return;
     tags.push(tag);
-    renderChips();
-    syncHidden();
+    render();
+    sync();
   }
 
   function removeTag(tag) {
     tags = tags.filter(t => t !== tag);
-    renderChips();
-    syncHidden();
+    render();
+    sync();
   }
 
-  function renderChips() {
-    // Hapus chip lama (bukan input)
-    container.querySelectorAll('.tag-chip').forEach(el => el.remove());
-
+  function render() {
+    chipsWrap.querySelectorAll('.tag-chip').forEach(el => el.remove());
+    const frag = document.createDocumentFragment();
     tags.forEach(tag => {
       const chip = document.createElement('span');
-      chip.className = 'tag-chip inline-flex items-center gap-1 px-2.5 py-1 bg-accent-500/10 text-accent-700 rounded-full text-xs font-medium border border-accent-200';
-      chip.innerHTML = `
-        <span>#${escapeHtml(tag)}</span>
-        <button type="button" data-remove-tag="${escapeHtml(tag)}"
-          class="ml-0.5 text-accent-500 hover:text-red-500 transition leading-none"
-          title="Hapus tag">×</button>`;
-      container.insertBefore(chip, input.parentElement || input);
+      chip.className = 'tag-chip inline-flex items-center gap-1 px-2.5 py-1 bg-accent-500/10 text-accent-700 rounded-full text-xs font-medium border border-accent-200 select-none';
+      chip.innerHTML = `<span>#${esc(tag)}</span>
+        <button type="button" data-remove-tag="${esc(tag)}"
+          class="ml-0.5 w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-accent-300 text-accent-500 hover:text-white transition leading-none text-xs"
+          title="Hapus">×</button>`;
+      frag.appendChild(chip);
     });
+    chipsWrap.insertBefore(frag, inputField.parentElement);
 
-    // Hint teks
     const hint = document.getElementById('tagHint');
-    if (hint) hint.textContent = tags.length > 0 ? `${tags.length}/10 topik` : 'Tekan Enter atau koma untuk menambah';
+    if (hint) hint.textContent = tags.length ? `${tags.length}/10 topik ditambahkan` : 'Tekan Enter atau koma untuk menambah topik';
   }
 
-  function syncHidden() {
-    hiddenInput.value = tags.join(', ');
-  }
-
-  function escapeHtml(str) {
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+  function sync() { hiddenInput.value = tags.join(', '); }
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   return { init };
 })();
 
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════
    MEDIA MANAGER
-   Kelola lampiran foto/video/PDF via URL API
-───────────────────────────────────────────── */
+═══════════════════════════════════════════════════════════════════ */
 const MediaManager = (() => {
-  let mediaFiles  = [];
+  let files       = [];
   let hiddenInput = null;
   let listEl      = null;
-  let currentType = 'image';
+  let activeType  = 'image';
 
-  const TYPE_CONFIG = {
-    image : { label: 'Foto',  accept: 'image/*',    placeholder: 'https://cdn.example.com/foto.jpg', icon: '🖼️' },
-    video : { label: 'Video', accept: 'video/*',    placeholder: 'https://cdn.example.com/video.mp4', icon: '🎥' },
-    pdf   : { label: 'PDF',   accept: '.pdf',       placeholder: 'https://cdn.example.com/dokumen.pdf', icon: '📄' },
+  const CFG = {
+    image: { label: 'Foto',  icon: '🖼️', ph: 'https://cdn.example.com/foto.jpg' },
+    video: { label: 'Video', icon: '🎥', ph: 'https://cdn.example.com/video.mp4' },
+    pdf  : { label: 'PDF',   icon: '📄', ph: 'https://cdn.example.com/dokumen.pdf' },
   };
 
   function init() {
     hiddenInput = document.getElementById('mediaFilesInput');
     listEl      = document.getElementById('mediaList');
-
     if (!hiddenInput || !listEl) return;
 
-    // Load existing media (edit mode)
-    try {
-      mediaFiles = JSON.parse(hiddenInput.value || '[]');
-    } catch { mediaFiles = []; }
+    try { files = JSON.parse(hiddenInput.value || '[]'); } catch { files = []; }
 
-    // Tombol pilih tipe
+    // Tombol tipe media
     document.querySelectorAll('[data-media-type]').forEach(btn => {
-      btn.addEventListener('click', () => showUploadPanel(btn.dataset.mediaType));
+      btn.addEventListener('click', () => openPanel(btn.dataset.mediaType));
     });
 
-    // Tombol tambah
-    const addBtn = document.getElementById('addMediaBtn');
-    if (addBtn) addBtn.addEventListener('click', addMediaFromInput);
+    document.getElementById('addMediaBtn')?.addEventListener('click', addFromInput);
 
-    // Enter di URL input
-    const urlInput = document.getElementById('mediaUrlInput');
-    if (urlInput) {
-      urlInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); addMediaFromInput(); }
-      });
-    }
-
-    // Tutup panel
-    const closeBtn = document.getElementById('closeUploadPanel');
-    if (closeBtn) closeBtn.addEventListener('click', hideUploadPanel);
-
-    // Event delegation untuk hapus item
-    listEl.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-remove-media]');
-      if (btn) removeMedia(parseInt(btn.dataset.removeMedia));
-    });
-
-    renderList();
-  }
-
-  function showUploadPanel(type) {
-    currentType = type;
-    const cfg   = TYPE_CONFIG[type];
-    const panel = document.getElementById('uploadPanel');
-    const label = document.getElementById('uploadTypeLabel');
     const urlIn = document.getElementById('mediaUrlInput');
+    urlIn?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addFromInput(); } });
 
-    if (!panel) return;
+    document.getElementById('closeUploadPanel')?.addEventListener('click', closePanel);
 
-    label.textContent    = cfg.label;
-    urlIn.placeholder    = cfg.placeholder;
-    urlIn.value          = '';
-    document.getElementById('mediaNameInput').value = '';
-
-    panel.classList.remove('hidden');
-    urlIn.focus();
-
-    // Highlight tombol aktif
-    document.querySelectorAll('[data-media-type]').forEach(b => b.classList.remove('ring-2', 'ring-accent-400'));
-    document.querySelector(`[data-media-type="${type}"]`)?.classList.add('ring-2', 'ring-accent-400');
-  }
-
-  function hideUploadPanel() {
-    document.getElementById('uploadPanel')?.classList.add('hidden');
-    document.querySelectorAll('[data-media-type]').forEach(b => b.classList.remove('ring-2', 'ring-accent-400'));
-  }
-
-  function addMediaFromInput() {
-    const url  = document.getElementById('mediaUrlInput').value.trim();
-    const name = document.getElementById('mediaNameInput').value.trim() || url.split('/').pop().split('?')[0];
-
-    if (!url) {
-      showInputError('mediaUrlInput', 'Masukkan URL file');
-      return;
-    }
-    if (!isValidUrl(url)) {
-      showInputError('mediaUrlInput', 'URL tidak valid');
-      return;
-    }
-
-    mediaFiles.push({ type: currentType, url, name });
-    syncHidden();
-    renderList();
-    hideUploadPanel();
-    document.getElementById('mediaUrlInput').value  = '';
-    document.getElementById('mediaNameInput').value = '';
-  }
-
-  function removeMedia(index) {
-    mediaFiles.splice(index, 1);
-    syncHidden();
-    renderList();
-  }
-
-  function renderList() {
-    if (!listEl) return;
-    if (mediaFiles.length === 0) {
-      listEl.innerHTML = '<p class="text-sm text-ink-400 col-span-3 py-2">Belum ada lampiran</p>';
-      return;
-    }
-
-    listEl.innerHTML = '';
-    mediaFiles.forEach((m, i) => {
-      const card = document.createElement('div');
-      card.className = 'relative group rounded-xl border border-ink-200 overflow-hidden bg-white shadow-sm';
-
-      let preview = '';
-      if (m.type === 'image') {
-        preview = `<img src="${escapeHtml(m.url)}" alt="${escapeHtml(m.name)}" class="w-full h-24 object-cover" onerror="this.style.display='none'">`;
-      } else if (m.type === 'video') {
-        preview = `<video src="${escapeHtml(m.url)}" class="w-full h-24 bg-ink-900 object-cover"></video>`;
-      } else {
-        preview = `<div class="w-full h-24 flex items-center justify-center bg-red-50 text-3xl">📄</div>`;
-      }
-
-      card.innerHTML = `
-        ${preview}
-        <div class="p-2 flex items-center gap-1.5">
-          <span class="text-xs">${TYPE_CONFIG[m.type]?.icon || '📎'}</span>
-          <p class="text-xs text-ink-600 truncate flex-1" title="${escapeHtml(m.name)}">${escapeHtml(m.name)}</p>
-        </div>
-        <button type="button"
-          data-remove-media="${i}"
-          title="Hapus lampiran"
-          class="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity shadow">
-          ×
-        </button>`;
-
-      listEl.appendChild(card);
+    // Hapus media via event delegation
+    listEl.addEventListener('click', e => {
+      const btn = e.target.closest('[data-remove-media]');
+      if (btn) remove(parseInt(btn.dataset.removeMedia, 10));
     });
+
+    render();
   }
 
-  function syncHidden() {
-    if (hiddenInput) hiddenInput.value = JSON.stringify(mediaFiles);
+  function openPanel(type) {
+    activeType = type;
+    const panel = document.getElementById('uploadPanel');
+    if (!panel) return;
+    document.getElementById('uploadTypeLabel').textContent  = CFG[type].label;
+    document.getElementById('mediaUrlInput').placeholder    = CFG[type].ph;
+    document.getElementById('mediaUrlInput').value          = '';
+    document.getElementById('mediaNameInput').value         = '';
+    panel.classList.remove('hidden');
+    document.getElementById('mediaUrlInput').focus();
+    document.querySelectorAll('[data-media-type]').forEach(b => b.classList.remove('ring-2','ring-accent-400'));
+    document.querySelector(`[data-media-type="${type}"]`)?.classList.add('ring-2','ring-accent-400');
   }
 
-  function isValidUrl(str) {
-    try { new URL(str); return true; } catch { return false; }
+  function closePanel() {
+    document.getElementById('uploadPanel')?.classList.add('hidden');
+    document.querySelectorAll('[data-media-type]').forEach(b => b.classList.remove('ring-2','ring-accent-400'));
   }
 
-  function showInputError(inputId, msg) {
-    const input = document.getElementById(inputId);
+  function addFromInput() {
+    const url  = document.getElementById('mediaUrlInput').value.trim();
+    const name = document.getElementById('mediaNameInput').value.trim() || url.split('/').pop().split('?')[0] || 'file';
+    if (!url) return flash('mediaUrlInput', 'Masukkan URL file');
+    try { new URL(url); } catch { return flash('mediaUrlInput', 'Format URL tidak valid'); }
+    files.push({ type: activeType, url, name });
+    sync(); render(); closePanel();
+  }
+
+  function remove(i) { files.splice(i, 1); sync(); render(); }
+
+  function render() {
+    if (!listEl) return;
+    if (!files.length) {
+      listEl.innerHTML = '<p class="text-sm text-ink-400 col-span-3 py-3 italic">Belum ada lampiran</p>';
+      return;
+    }
+    listEl.innerHTML = files.map((m, i) => `
+      <div class="relative group rounded-xl border border-ink-200 overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
+        ${m.type === 'image'
+          ? `<img src="${esc(m.url)}" alt="${esc(m.name)}" class="w-full h-24 object-cover bg-ink-100" onerror="this.src='/images/broken.png'">`
+          : m.type === 'video'
+          ? `<video src="${esc(m.url)}" class="w-full h-24 bg-ink-900"></video>`
+          : `<div class="w-full h-24 flex items-center justify-center bg-red-50 text-4xl">📄</div>`}
+        <div class="p-2 flex items-center gap-1.5">
+          <span class="text-sm">${CFG[m.type]?.icon}</span>
+          <p class="text-xs text-ink-600 truncate" title="${esc(m.name)}">${esc(m.name)}</p>
+        </div>
+        <button type="button" data-remove-media="${i}"
+          class="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center bg-red-500 text-white rounded-full text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity shadow">
+          ×</button>
+      </div>`).join('');
+  }
+
+  function sync() { if (hiddenInput) hiddenInput.value = JSON.stringify(files); }
+
+  function flash(id, msg) {
+    const input = document.getElementById(id);
     if (!input) return;
-    input.classList.add('border-red-400');
-    const err = document.createElement('p');
-    err.className = 'text-xs text-red-500 mt-1 input-error';
+    input.classList.add('border-red-400','focus:ring-red-400');
+    let err = input.parentElement.querySelector('.field-error');
+    if (!err) { err = document.createElement('p'); err.className = 'field-error text-xs text-red-500 mt-1'; input.parentElement.appendChild(err); }
     err.textContent = msg;
-    input.parentElement.appendChild(err);
-    setTimeout(() => {
-      input.classList.remove('border-red-400');
-      err.remove();
-    }, 2500);
     input.focus();
+    setTimeout(() => { input.classList.remove('border-red-400','focus:ring-red-400'); err?.remove(); }, 2500);
   }
 
-  function escapeHtml(str) {
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   return { init };
 })();
 
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════
    COVER IMAGE PREVIEW
-───────────────────────────────────────────── */
+═══════════════════════════════════════════════════════════════════ */
 const CoverPreview = (() => {
   function init() {
     const input   = document.getElementById('coverImageUrl');
-    const preview = document.getElementById('coverPreview');
+    const wrap    = document.getElementById('coverPreview');
     const img     = document.getElementById('coverPreviewImg');
     const btn     = document.getElementById('coverPreviewBtn');
-
     if (!input) return;
 
-    function doPreview() {
+    function preview() {
       const url = input.value.trim();
       if (!url) return;
-      if (img) { img.src = url; img.onerror = () => { preview.classList.add('hidden'); }; }
-      if (preview) preview.classList.remove('hidden');
+      img.src      = url;
+      img.onerror  = () => wrap.classList.add('hidden');
+      img.onload   = () => wrap.classList.remove('hidden');
+      wrap.classList.remove('hidden');
     }
 
-    if (btn) btn.addEventListener('click', doPreview);
-
-    // Debounced auto-preview saat mengetik
-    let timer = null;
-    input.addEventListener('input', () => {
-      clearTimeout(timer);
-      timer = setTimeout(doPreview, 600);
-    });
-
-    // Preview on load jika sudah ada value (edit mode)
-    if (input.value.trim()) doPreview();
+    btn?.addEventListener('click', preview);
+    let t;
+    input.addEventListener('input', () => { clearTimeout(t); t = setTimeout(preview, 600); });
+    if (input.value.trim()) preview();
   }
-
   return { init };
 })();
 
 
-/* ─────────────────────────────────────────────
-   META DESCRIPTION COUNTER
-───────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════
+   META CHAR COUNTER
+═══════════════════════════════════════════════════════════════════ */
 const MetaCounter = (() => {
   function init() {
-    const textarea = document.getElementById('metaDesc');
-    const counter  = document.getElementById('metaCharCount');
-    if (!textarea || !counter) return;
-
-    function update() {
-      const len = textarea.value.length;
-      counter.textContent = `${len}/160`;
-      counter.className = len > 150
-        ? 'font-normal ml-1 text-orange-500'
-        : len > 160
-          ? 'font-normal ml-1 text-red-500'
-          : 'font-normal ml-1 text-ink-400';
-    }
-
-    textarea.addEventListener('input', update);
+    const ta = document.getElementById('metaDesc');
+    const el = document.getElementById('metaCharCount');
+    if (!ta || !el) return;
+    const update = () => {
+      const n = ta.value.length;
+      el.textContent = `${n}/160`;
+      el.className = n > 160 ? 'font-normal ml-1 text-red-500'
+                   : n > 140 ? 'font-normal ml-1 text-orange-500'
+                   :            'font-normal ml-1 text-ink-400';
+    };
+    ta.addEventListener('input', update);
     update();
   }
-
   return { init };
 })();
 
 
-/* ─────────────────────────────────────────────
-   AUTO-SAVE DRAFT (localStorage)
-   Menyimpan konten editor setiap 30 detik
-───────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════
+   AUTO-SAVE ke localStorage
+═══════════════════════════════════════════════════════════════════ */
 const AutoSave = (() => {
-  const KEY_PREFIX = 'blog_draft_';
-  let articleId    = null;
-  let timer        = null;
+  const PREFIX = 'blogdraft_';
+  let key = null;
 
   function init() {
     const form    = document.getElementById('articleForm');
-    const textarea = document.getElementById('contentEditor');
+    const ta      = document.getElementById('contentEditor');
     const titleIn = document.querySelector('[name="title"]');
+    if (!form || !ta) return;
 
-    if (!form || !textarea) return;
+    key = PREFIX + (form.dataset.articleId || 'new');
 
-    articleId = form.dataset.articleId || 'new';
-    const key = KEY_PREFIX + articleId;
-
-    // Restore draft jika ada (hanya untuk artikel baru)
-    if (articleId === 'new') {
-      const saved = localStorage.getItem(key);
-      if (saved) {
+    // Cek draft tersimpan (hanya untuk artikel baru)
+    if (form.dataset.articleId === 'new') {
+      const raw = localStorage.getItem(key);
+      if (raw) {
         try {
-          const draft = JSON.parse(saved);
+          const d      = JSON.parse(raw);
           const banner = document.getElementById('autosaveBanner');
           if (banner) {
             banner.classList.remove('hidden');
             document.getElementById('restoreDraftBtn')?.addEventListener('click', () => {
-              if (draft.title && titleIn)  titleIn.value  = draft.title;
-              if (draft.content)           textarea.value = draft.content;
+              if (d.title && titleIn)  titleIn.value = d.title;
+              if (d.content)           ta.value      = d.content;
               banner.classList.add('hidden');
-              MarkdownPreview.update();
+              LivePreview.update();
             });
             document.getElementById('discardDraftBtn')?.addEventListener('click', () => {
               localStorage.removeItem(key);
@@ -610,108 +533,57 @@ const AutoSave = (() => {
       }
     }
 
-    // Auto-save setiap 30 detik
-    timer = setInterval(() => saveDraft(key, titleIn, textarea), 30000);
-
-    // Hapus draft saat form disubmit berhasil
+    setInterval(() => save(titleIn, ta), 30000);
     form.addEventListener('submit', () => localStorage.removeItem(key));
-
-    // Tampilkan status
-    showStatus('');
   }
 
-  function saveDraft(key, titleIn, textarea) {
-    const data = {
+  function save(titleIn, ta) {
+    if (!key) return;
+    localStorage.setItem(key, JSON.stringify({
       title  : titleIn?.value || '',
-      content: textarea.value,
-      savedAt: new Date().toISOString(),
-    };
-    localStorage.setItem(key, JSON.stringify(data));
-    showStatus('Draft tersimpan ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
-  }
-
-  function showStatus(msg) {
+      content: ta.value,
+      at     : new Date().toISOString(),
+    }));
     const el = document.getElementById('autosaveStatus');
-    if (!el) return;
-    el.textContent = msg;
-    el.style.opacity = '1';
-    if (msg) setTimeout(() => { el.style.opacity = '0'; }, 3000);
+    if (el) {
+      el.textContent = 'Tersimpan ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      el.style.opacity = '1';
+      setTimeout(() => { el.style.opacity = '0'; }, 3000);
+    }
   }
 
   return { init };
 })();
 
 
-/* ─────────────────────────────────────────────
-   UNSAVED CHANGES WARNING
-───────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════
+   UNSAVED WARNING
+═══════════════════════════════════════════════════════════════════ */
 const UnsavedWarning = (() => {
   function init() {
     let dirty = false;
     const form = document.getElementById('articleForm');
     if (!form) return;
-
-    form.querySelectorAll('input, textarea, select').forEach(el => {
+    form.querySelectorAll('input,textarea,select').forEach(el => {
       el.addEventListener('input', () => { dirty = true; });
     });
-
     form.addEventListener('submit', () => { dirty = false; });
-
-    window.addEventListener('beforeunload', (e) => {
-      if (dirty) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    });
+    window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
   }
   return { init };
 })();
 
 
-/* ─────────────────────────────────────────────
-   FORM VALIDATION
-   Validasi konten sebelum submit
-───────────────────────────────────────────── */
-const FormValidator = (() => {
-  function init() {
-    const form = document.getElementById('articleForm');
-    if (!form) return;
-
-    form.addEventListener('submit', (e) => {
-      const titleInput = document.getElementById('titleInput');
-      const contentEditor = document.getElementById('contentEditor');
-      const errors = [];
-
-      if (!titleInput?.value?.trim()) {
-        errors.push('Judul artikel diperlukan');
-      }
-
-      if (!contentEditor?.value?.trim()) {
-        errors.push('Konten artikel diperlukan');
-      }
-
-      if (errors.length > 0) {
-        e.preventDefault();
-        alert('Mohon lengkapi form:\n\n' + errors.map(err => '• ' + err).join('\n'));
-        contentEditor?.focus();
-      }
-    });
-  }
-  return { init };
-})();
-
-
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════
    BOOT
-───────────────────────────────────────────── */
+═══════════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
   EditorToolbar.init();
-  MarkdownPreview.init();
+  LivePreview.init();
   TagManager.init();
   MediaManager.init();
   CoverPreview.init();
   MetaCounter.init();
   AutoSave.init();
   UnsavedWarning.init();
-  FormValidator.init();
 });
